@@ -1,0 +1,74 @@
+FROM node:lts-alpine3.10
+
+EXPOSE 3000-10000
+
+RUN apk update \
+    && apk add \
+      bash \
+      curl \
+      vim \
+#      xsel \
+      git \
+      python make g++
+      
+# add sudo user
+RUN set -ex && apk --no-cache add sudo
+run apk --no-cache add --virtual native-deps \
+  g++ gcc libgcc libstdc++ linux-headers make python && \
+  npm install --quiet node-gyp -g &&\
+  npm install --quiet
+  #apk del native-deps
+
+ENV TZ=America/Los_Angeles
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+ENV NPM_CONFIG_PREFIX=/home/node/.npm-global
+# accept the arguments from .Env (via compose file)
+ARG USER_ID
+ARG GROUP_ID
+ARG USER_NAME
+
+RUN yarn install --silent
+
+RUN npm install -g typescript ts-node
+
+# Add the group (if not existing) 
+# then add the user to the numbered group 
+
+
+RUN addgroup --gid ${GROUP_ID} ${USER_NAME} || true && \
+    adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/home/myao" \
+    --group `getent group ${PGID} | cut -d: -f1` --shell /bin/sh ${USER} || true \
+    --uid $USER_ID \
+    $USER_NAME 
+
+RUN echo "$USER_NAME ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$USER_NAME \
+        && chmod 0440 /etc/sudoers.d/$USER_NAME
+
+# to prevent npm install fail.
+RUN mkdir -p /.npm/_locks
+RUN chown --changes --silent --no-dereference --recursive \
+        ${USER_ID}:${GROUP_ID} \
+        /.npm 
+
+RUN mkdir -p /home/$USER_NAME/.npm-global
+RUN chown --changes --silent --no-dereference --recursive \
+        ${USER_ID}:${GROUP_ID} \
+        /home/$USER_NAME/.npm-global
+
+RUN mkdir -p /.cache/node-gyp
+RUN chown --changes --silent --no-dereference --recursive \
+        ${USER_ID}:${GROUP_ID} \
+        /.cache/node-gyp
+
+RUN mkdir -p /tmp/.node-gyp
+RUN chown --changes --silent --no-dereference --recursive \
+        ${USER_ID}:${GROUP_ID} \
+        /tmp/.node-gyp
+
+
+
+USER $USER_NAME
+

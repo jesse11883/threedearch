@@ -1,0 +1,10 @@
+version: "3"
+services:
+  web-server:
+    ports:
+      - "3000:3000"
+    build:
+      context: "./"
+      dockerfile: "./Dockerfile"
+      volumes:
+        - ${HOST_PRJ_PATH}:${CONTAINER_PRJ_PATH}
